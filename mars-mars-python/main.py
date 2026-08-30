@@ -54,9 +54,9 @@ points = [
 current_checkpoint = 0
 
 # Player variables
-spawn_point = [ground1.centerx, ground1.top + 10]
+spawn_point = [ground1.centerx, ground1.top - 50]
 
-player_pos = [ground1.centerx, ground1.top + 10]
+player_pos = [ground1.centerx, ground1.top - 50]
 player_size = [20, 20]
 player_color = (0, 0, 255)  # Blue
 
@@ -65,6 +65,7 @@ player_jetpack_force = -8
 player_jump = -12
 
 gravity = 0.5
+max_gravity = 20
 
 
 class Player(pygame.sprite.Sprite):
@@ -131,7 +132,10 @@ class Player(pygame.sprite.Sprite):
         if not self.on_ground:
             self.vel_y += 1
 
-        if self.vel_y >= 15 and not self.player_using_jetpack and self.player_fuel <= 0:
+        if self.vel_y >= max_gravity:
+            self.vel_y = max_gravity
+
+        if self.vel_y >= max_gravity and not self.player_using_jetpack and self.player_fuel <= 0:
             player.rect.x = spawn_point[0]
             player.rect.y = spawn_point[1]
 
