@@ -1,3 +1,6 @@
+# TODO: Poner comentarios
+# TODO: Poner warning de mucho velocidad
+
 import pygame
 import numpy as np
 # import keyboard
@@ -19,11 +22,17 @@ text_color = (255, 255, 255)  # White
 # Background
 background = (40, 40, 40)  # Dark gray
 
+gradient_ground_color1 = (137, 3, 1)
+gradient_ground_color2 = (142, 33, 3)
+
+gradient_sky_color1 = (171, 227, 152)
+gradient_sky_color2 = (93, 143, 79)
+
 # Grounds
 ground_color = (255, 255, 255)
 
-ground1_pos = [screen_middle_x/2, 500]
-ground1_size = [400, 20]
+ground1_size = [150, 20]
+ground1_pos = [screen_middle_x - ground1_size[0]//2, 500]
 ground1 = pygame.Rect(ground1_pos, ground1_size)
 
 # kill obstacles
@@ -33,16 +42,27 @@ kill_bottom_size = [SCREEN.get_rect().x, 10]
 kill_bottom_pos = [0, SCREEN.get_rect().bottom]
 kill_bottom = pygame.Rect(kill_bottom_pos, kill_bottom_size)
 
+# Checkpoints
+checkpoint_color = (230, 190, 130)
+
+points = [
+    (10, 500),
+    (80, 500),
+    (45, 550)
+]
+
+current_checkpoint = 0
+
 # Player variables
-player_pos = [screen_middle_x, screen_middle_y]
+spawn_point = [ground1.centerx, ground1.top + 10]
+
+player_pos = [ground1.centerx, ground1.top + 10]
 player_size = [20, 20]
 player_color = (0, 0, 255)  # Blue
 
 player_jetpack_force = -8
 
 player_jump = -12
-facing = "up"
-spawn_point = [screen_middle_x, screen_middle_y]
 
 gravity = 0.5
 
@@ -58,27 +78,39 @@ class Player(pygame.sprite.Sprite):
         self.alive = True
         self.player_fuel = 100
         self.player_using_jetpack = False
+        self.direction = "right"
+        self.player_movement = 5
 
         # Physics variables
         self.vel_y = 0
+        self.vel_x = 0
         self.on_ground = True
 
     def current_fuel(self):
         return self.player_fuel
 
-    def update(self, keys):
-        # Horizontal movement (optional)
+    def current_direction(self):
+        return self.direction
+
+    def update(self, keys, spawn_point):
+        if self.on_ground:
+            self.player_movement = 8
+        if self.player_using_jetpack or not self.on_ground:
+            self.player_movement = 3
+
         if keys[pygame.K_LEFT] | keys[pygame.K_a]:
-            self.rect.x -= 5
-            facing = "left"
+            self.rect.x -= self.player_movement
+            self.direction = "left"
         if keys[pygame.K_RIGHT] | keys[pygame.K_d]:
-            self.rect.x += 5
-            facing = "right"
+            self.rect.x += self.player_movement
+            self.direction = "right"
 
         # Jumping logic
+        """
         if keys[pygame.K_UP] | keys[pygame.K_w] and self.on_ground:
             self.vel_y = player_jump
             self.on_ground = False
+        """
 
         # Jetpack logic
         if keys[pygame.K_SPACE] and self.player_fuel > 0:
@@ -94,6 +126,15 @@ class Player(pygame.sprite.Sprite):
         # Apply gravity
         self.vel_y += gravity
         self.rect.y += self.vel_y
+
+        print(self.vel_y)
+        if not self.on_ground:
+            self.vel_y += 1
+
+        if self.vel_y >= 15 and not self.player_using_jetpack and self.player_fuel <= 0:
+            player.rect.x = spawn_point[0]
+            player.rect.y = spawn_point[1]
+
 
     def ground_collision(self, grounds):
         self.on_ground = False
@@ -126,6 +167,17 @@ class KillObstacle(pygame.sprite.Sprite):
         self.rect = rect
 
 
+def draw_gradient_rect(surface, rect, color1, color2):
+    # Create a 2x1 surface with the two colors
+    temp_surf = pygame.Surface((1, 2), flags=pygame.SRCALPHA)
+    temp_surf.fill(color1, (0, 0, 1, 1))
+    temp_surf.fill(color2, (1, 0, 1, 1))
+
+    # Scale it to the target rectangle
+    scaled_surf = pygame.transform.smoothscale(temp_surf, (rect.width, rect.height))
+    surface.blit(scaled_surf, rect)
+
+
 player = Player()
 
 ground1 = Ground(ground1)
@@ -155,7 +207,7 @@ while running:
     keys = pygame.key.get_pressed()
 
     # Player functions
-    player.update(keys)
+    player.update(keys, spawn_point)
     player.ground_collision(ground_sprites)
     player.check_kill_player(kill_obstacles, spawn_point)
 
@@ -165,10 +217,16 @@ while running:
     player.rect.clamp_ip(clamp_rect)
 
     # Background color
-    SCREEN.fill(background)
+    SCREEN.fill(gradient_sky_color1)
+
+    # Sky gradient
+    draw_gradient_rect(SCREEN, pygame.Rect(SCREEN.get_rect().x, SCREEN.get_rect().y, 800, 800), gradient_sky_color1, gradient_sky_color2)
+
+    # Ground gradient
+    draw_gradient_rect(SCREEN, pygame.Rect(SCREEN.get_rect().x, 500, 800, 800), gradient_ground_color1, gradient_ground_color2)
 
     # Draw text
-    facing_text = font.render(facing, True, text_color)
+    facing_text = font.render(str(player.current_direction()), True, text_color)
     facing_text_pos = (20, 10)
     SCREEN.blit(facing_text, facing_text_pos)
 
@@ -180,6 +238,9 @@ while running:
     player_sprite.draw(SCREEN)
     ground_sprites.draw(SCREEN)
     kill_obstacles.draw(SCREEN)
+
+    # Draw checkpoint
+    pygame.draw.polygon(SCREEN, checkpoint_color, points)
 
     pygame.display.flip()
 
